@@ -1,11 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    java
-    kotlin("jvm") version "1.3.61"
-    id("com.github.johnrengelman.shadow") version "5.2.0"
-    id("com.palantir.graal") version "0.6.0-58-gce10e7e"
-    id("com.bmuschko.docker-remote-api") version "6.1.1"
+    kotlin("jvm")
 }
 
 group = "io.xooxo"

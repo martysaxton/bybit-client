@@ -3,8 +3,8 @@ package io.xooxo.bybit.impl
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.treeToValue
 import io.xooxo.bybit.ByBitClient
 import io.xooxo.bybit.model.*
 import org.http4k.client.WebsocketClient
@@ -125,26 +125,26 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
     }
 
     private fun handleInstrumentInfoDelta(json: JsonNode) {
-        val instrumentInfoDeltaMessage: InstrumentInfoDeltaMessage = Jackson.mapper.treeToValue(json)
+        val instrumentInfoDeltaMessage: InstrumentInfoDeltaMessage = Jackson.mapper.convertValue(json)
         log.debug("received instrument info delta: {}", instrumentInfoDeltaMessage)
         instrumentInfoDeltaListener?.let { it(instrumentInfoDeltaMessage) }
 
     }
 
     private fun handleInstrumentInfoSnapshot(json: JsonNode) {
-        val instrumentInfoSnapshotMessage: InstrumentInfoSnapshotMessage = Jackson.mapper.treeToValue(json)
+        val instrumentInfoSnapshotMessage: InstrumentInfoSnapshotMessage = Jackson.mapper.convertValue(json)
         log.debug("received instrument info snapshot: {}", instrumentInfoSnapshotMessage)
         instrumentInfoSnapshotListener?.let { it(instrumentInfoSnapshotMessage) }
     }
 
     private fun handleDepthDelta(json: JsonNode) {
-        val depthDeltaMessage: DepthDeltaMessage = Jackson.mapper.treeToValue(json)
+        val depthDeltaMessage: DepthDeltaMessage = Jackson.mapper.convertValue(json)
         log.debug("received depth delta: {}", depthDeltaMessage)
         depthDeltaListener?.let { it(depthDeltaMessage) }
     }
 
     private fun handleDepthSnapshot(json: JsonNode) {
-        val depthSnapshotMessage: DepthSnapshotMessage = Jackson.mapper.treeToValue(json)
+        val depthSnapshotMessage: DepthSnapshotMessage = Jackson.mapper.convertValue(json)
         log.debug("received depth snapshot: {}", depthSnapshotMessage)
         depthSnapshotListener?.let { it(depthSnapshotMessage) }
     }
@@ -157,7 +157,12 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
     }
 
     private fun handleOpResponse(json: JsonNode) {
-        log.info("op response {}", json)
+        val success = json["success"].booleanValue()
+        if (success) {
+            log.debug("op response {}", json)
+        } else {
+            log.error("op response {}", json)
+        }
     }
 
     override fun close() {

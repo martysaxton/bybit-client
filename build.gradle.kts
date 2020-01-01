@@ -1,9 +1,5 @@
+plugins {
+    kotlin("jvm") version "1.3.61" apply false
+}
 
-// val cl = Action<Task> { println("I'm ${this.project.name}") }
-// tasks.register("hello") { doLast(cl) }
-// project(":bluewhale") {
-//     tasks.register("hello") { doLast(cl) }
-// }
-// project(":bluewhale:grandchild") {
-//     tasks.register("hello") { doLast(cl) }
-// }
+

@@ -1,8 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    java
-    kotlin("jvm") version "1.3.61"
+    kotlin("jvm")
     id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
@@ -15,6 +14,7 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation(project(":bybit-client"))
     implementation("ch.qos.logback:logback-classic:1.2.3")
 }
 
@@ -34,11 +34,15 @@ task("execute", JavaExec::class) {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+
 tasks {
     jar {
         manifest {
-            attributes(mapOf("Main-Class" to "io.xooxo.bybit.MainKt"))
+            attributes(mapOf("Main-Class" to "io.xooxo.bybit.DumpExampleKt"))
         }
+    }
+    build {
+        dependsOn("shadowJar")
     }
 }
 
