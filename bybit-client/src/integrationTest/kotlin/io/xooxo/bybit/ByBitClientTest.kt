@@ -27,7 +27,7 @@ class ByBitClientTest {
     @Test
     fun trades() {
         var tradeReceived = false
-        client.setTradeLisetner { tradeReceived = true }
+        client.setTradeListener { tradeReceived = true }
         client.setConnectListener { client.subscribeToTrades() }
         client.connectWebSocket()
         for (i in 1..60) {
@@ -39,5 +39,21 @@ class ByBitClientTest {
         assertTrue(tradeReceived)
     }
 
+    @Test
+    fun orderBook() {
+        var depthSnapshotReceived = false
+        var depthDeltaReceived = false
+        client.setDepthListeners({ depthSnapshotReceived = true }, { depthDeltaReceived = true })
+        client.setConnectListener { client.subscribeToOrderBook("BTCUSD") }
+        client.connectWebSocket()
+        for (i in 1..60) {
+            if (depthSnapshotReceived && depthDeltaReceived) {
+                break
+            }
+            Thread.sleep(1000)
+        }
+        assertTrue(depthSnapshotReceived)
+        assertTrue(depthDeltaReceived)
+    }
 }
 

@@ -16,3 +16,4 @@ data class Trade(
         val cross_seq: Long
 )
 
+typealias TradeListener = (tradeMessage: TradeMessage) -> Unit

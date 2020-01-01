@@ -3,8 +3,10 @@ package io.xooxo.bybit.impl
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.treeToValue
 import io.xooxo.bybit.ByBitClient
-import io.xooxo.bybit.model.TradeMessage
+import io.xooxo.bybit.model.*
 import org.http4k.client.WebsocketClient
 import org.http4k.core.Uri
 import org.http4k.format.ConfigurableJackson
@@ -16,7 +18,6 @@ import org.http4k.websocket.WsMessage
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.concurrent.fixedRateTimer
-
 
 object Jackson : ConfigurableJackson(KotlinModule()
         .asConfigurable()
@@ -39,13 +40,20 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         log.debug("instantiating {}", ByBitClientImpl::class.simpleName)
     }
 
-    private var onTrade: ((tradeMessage: TradeMessage) -> Unit)? = null
-    private var onConnect: (() -> Unit)? = null
-    private var onClose: (() -> Unit)? = null
+    private var depthSnapshotListener: DepthSnapshotListener? = null
+    private var depthDeltaListener: DepthDeltaListener? = null
+
+    private var tradeListener: TradeListener? = null
+    private var connectListener: (() -> Unit)? = null
+    private var closeListener: (() -> Unit)? = null
+
     private var closing = false
     private var websocket: Websocket? = null
 
     private val jsonLens = WsMessage.auto<JsonNode>().toLens()
+
+    val mapper = jacksonObjectMapper()
+
 
     override fun connectWebSocket() {
         log.info("connecting to {}", type.webSocketUrl)
@@ -53,7 +61,7 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         websocket = WebsocketClient.nonBlocking(Uri.of(type.webSocketUrl)) { it ->
             it.run {
                 log.info("connected to {}", type.webSocketUrl)
-                onConnect?.let { it() }
+                connectListener?.let { it() }
                 fixedRateTimer("byBitPing", true, 10000, 10000) {
                     log.debug("sending ping")
                     send(WsMessage("{\"op\":\"ping\"}"))
@@ -72,13 +80,25 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
                     val topic: String = json["topic"].textValue()
                     if (topic.startsWith("trade.")) {
                         handleTradeMessage(json)
+                    } else if (topic.startsWith("orderBookL2_25.")) {
+                        when (val type: String = json["type"].textValue()) {
+                            "snapshot" -> {
+                                handleDepthSnapshot(json)
+                            }
+                            "delta" -> {
+                                handleDepthDelta(json)
+                            }
+                            else -> {
+                                throw RuntimeException("unknown depth event type: ${type}")
+                            }
+                        }
                     }
                 }
             }
 
             onClose {
                 log.info("websocket closing")
-                onClose?.let { it() }
+                closeListener?.let { it() }
                 if (!closing) {
                     connectWebSocket()
                 }
@@ -88,11 +108,23 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         }
     }
 
+    private fun handleDepthDelta(json: JsonNode) {
+        val depthDeltaMessage: DepthDeltaMessage = Jackson.mapper.treeToValue(json)
+        log.debug("received depth delta: {}", depthDeltaMessage)
+        depthDeltaListener?.let { it(depthDeltaMessage) }
+    }
+
+    private fun handleDepthSnapshot(json: JsonNode) {
+        val depthSnapshotMessage: DepthSnapshotMessage = Jackson.mapper.treeToValue(json)
+        log.debug("received depth snapshot: {}", depthSnapshotMessage)
+        depthSnapshotListener?.let { it(depthSnapshotMessage) }
+    }
+
 
     private fun handleTradeMessage(json: JsonNode) {
         val tradeMessage = Jackson.asA(json, TradeMessage::class)
         log.debug("received trade message: {}", tradeMessage)
-        onTrade?.let { it(tradeMessage) }
+        tradeListener?.let { it(tradeMessage) }
     }
 
     private fun handleOpResponse(json: JsonNode) {
@@ -105,19 +137,29 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
     }
 
     override fun setConnectListener(connectListener: () -> Unit) {
-        this.onConnect = connectListener
+        this.connectListener = connectListener
     }
 
     override fun setCloseListener(connectListener: () -> Unit) {
-        this.onClose = connectListener
+        this.closeListener = connectListener
     }
 
     override fun subscribeToTrades() {
         websocket!!.send(WsMessage("{\"op\":\"subscribe\",\"args\":[\"trade\"]}"))
     }
 
-    override fun setTradeLisetner(tradeListener: (tradeMessage: TradeMessage) -> Unit) {
-        onTrade = tradeListener
+    override fun setTradeListener(tradeListener: (tradeMessage: TradeMessage) -> Unit) {
+        this.tradeListener = tradeListener
     }
+
+    override fun subscribeToOrderBook(symbol: String) {
+        websocket!!.send(WsMessage("{\"op\": \"subscribe\", \"args\": [\"orderBookL2_25.$symbol\"]}"))
+    }
+
+    override fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener) {
+        this.depthSnapshotListener = depthSnapshotListener
+        this.depthDeltaListener = depthDeltaListener
+    }
+
 }
 

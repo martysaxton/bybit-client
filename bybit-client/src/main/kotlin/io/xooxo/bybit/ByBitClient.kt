@@ -1,6 +1,8 @@
 package io.xooxo.bybit
 
-import io.xooxo.bybit.model.TradeMessage
+import io.xooxo.bybit.model.DepthDeltaListener
+import io.xooxo.bybit.model.DepthSnapshotListener
+import io.xooxo.bybit.model.TradeListener
 
 interface ByBitClient {
     enum class Type(val baseUrl: String, val webSocketUrl: String) {
@@ -12,10 +14,12 @@ interface ByBitClient {
     fun close()
 
     fun setConnectListener(connectListener: () -> Unit)
-    fun setCloseListener(connectListener: () -> Unit)
+    fun setCloseListener(closeListener: () -> Unit)
 
     fun subscribeToTrades()
-    fun setTradeLisetner(tradeListener: (tradeMessage: TradeMessage) -> Unit)
+    fun setTradeListener(tradeListener: TradeListener)
 
+    fun subscribeToOrderBook(symbol: String)
+    fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener)
 
 }

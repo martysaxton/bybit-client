@@ -23,7 +23,6 @@ dependencies {
     api("org.http4k:http4k-client-okhttp:3.205.0")
     api("org.http4k:http4k-format-jackson:3.205.0")
     api("org.http4k:http4k-client-websocket:3.205.0")
-//    api("org.apache.commons:commons-lang3:3.6")
     testImplementation("org.junit.jupiter:junit-jupiter:5.5.2")
     testImplementation("ch.qos.logback:logback-classic:1.2.3")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.3")
@@ -32,14 +31,6 @@ dependencies {
 
 sourceSets {
     create("integrationTest") {
-        //        withConvention(org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet::class) {
-//            kotlin.srcDir("src/integrationTest/kotlin")
-//            resources.srcDir("src/integrationTest/resources")
-////            compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
-//            compileClasspath += sourceSets["main"].output + sourceSets["test"].runtimeClasspath
-//            runtimeClasspath += output + compileClasspath + sourceSets["test"].runtimeClasspath
-//        }
-
         withConvention(org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet::class) {
             kotlin.srcDir("src/integrationTest/kotlin")
             resources.srcDir("src/integrationTest/resources")
