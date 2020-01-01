@@ -55,5 +55,22 @@ class ByBitClientTest {
         assertTrue(depthSnapshotReceived)
         assertTrue(depthDeltaReceived)
     }
+
+    @Test
+    fun instrumentInfo() {
+        var instrumentInfoSnapshotReceived = false
+        var instrumentInfoDeltaReceived = false
+        client.setInstrumentInfoListeners({ instrumentInfoSnapshotReceived = true }, { instrumentInfoDeltaReceived = true })
+        client.setConnectListener { client.subscribeToInstrumentInfo("BTCUSD") }
+        client.connectWebSocket()
+        for (i in 1..60) {
+            if (instrumentInfoSnapshotReceived && instrumentInfoDeltaReceived) {
+                break
+            }
+            Thread.sleep(1000)
+        }
+        assertTrue(instrumentInfoSnapshotReceived)
+        assertTrue(instrumentInfoDeltaReceived)
+    }
 }
 

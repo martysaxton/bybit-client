@@ -43,6 +43,9 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
     private var depthSnapshotListener: DepthSnapshotListener? = null
     private var depthDeltaListener: DepthDeltaListener? = null
 
+    private var instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener? = null
+    private var instrumentInfoDeltaListener: InstrumentInfoDeltaListener? = null
+
     private var tradeListener: TradeListener? = null
     private var connectListener: (() -> Unit)? = null
     private var closeListener: (() -> Unit)? = null
@@ -92,6 +95,19 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
                                 throw RuntimeException("unknown depth event type: ${type}")
                             }
                         }
+                    } else if (topic.startsWith("instrument_info.")) {
+                        when (val type: String = json["type"].textValue()) {
+                            "snapshot" -> {
+                                handleInstrumentInfoSnapshot(json)
+                            }
+                            "delta" -> {
+                                handleInstrumentInfoDelta(json)
+                            }
+                            else -> {
+                                throw RuntimeException("unknown depth event type: ${type}")
+                            }
+                        }
+
                     }
                 }
             }
@@ -106,6 +122,19 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
 
             onError { log.error("error", it) }
         }
+    }
+
+    private fun handleInstrumentInfoDelta(json: JsonNode) {
+        val instrumentInfoDeltaMessage: InstrumentInfoDeltaMessage = Jackson.mapper.treeToValue(json)
+        log.debug("received instrument info delta: {}", instrumentInfoDeltaMessage)
+        instrumentInfoDeltaListener?.let { it(instrumentInfoDeltaMessage) }
+
+    }
+
+    private fun handleInstrumentInfoSnapshot(json: JsonNode) {
+        val instrumentInfoSnapshotMessage: InstrumentInfoSnapshotMessage = Jackson.mapper.treeToValue(json)
+        log.debug("received instrument info snapshot: {}", instrumentInfoSnapshotMessage)
+        instrumentInfoSnapshotListener?.let { it(instrumentInfoSnapshotMessage) }
     }
 
     private fun handleDepthDelta(json: JsonNode) {
@@ -159,6 +188,15 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
     override fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener) {
         this.depthSnapshotListener = depthSnapshotListener
         this.depthDeltaListener = depthDeltaListener
+    }
+
+    override fun subscribeToInstrumentInfo(symbol: String) {
+        websocket!!.send(WsMessage("{\"op\":\"subscribe\",\"args\":[\"instrument_info.100ms.$symbol\"]}"))
+    }
+
+    override fun setInstrumentInfoListeners(instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener, instrumentInfoDeltaListener: InstrumentInfoDeltaListener) {
+        this.instrumentInfoSnapshotListener = instrumentInfoSnapshotListener
+        this.instrumentInfoDeltaListener = instrumentInfoDeltaListener
     }
 
 }
