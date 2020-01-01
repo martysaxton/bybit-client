@@ -1,0 +1,88 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+    java
+    kotlin("jvm") version "1.3.61"
+    id("com.github.johnrengelman.shadow") version "5.2.0"
+    id("com.palantir.graal") version "0.6.0-58-gce10e7e"
+    id("com.bmuschko.docker-remote-api") version "6.1.1"
+}
+
+group = "io.xooxo"
+version = "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib-jdk8"))
+    api("org.slf4j:slf4j-api:1.7.30")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0") // JVM dependency
+    api("org.http4k:http4k-core:3.205.0")
+    api("org.http4k:http4k-client-okhttp:3.205.0")
+    api("org.http4k:http4k-format-jackson:3.205.0")
+    api("org.http4k:http4k-client-websocket:3.205.0")
+//    api("org.apache.commons:commons-lang3:3.6")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.5.2")
+    testImplementation("ch.qos.logback:logback-classic:1.2.3")
+}
+
+
+sourceSets {
+    create("integrationTest") {
+        withConvention(org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet::class) {
+            kotlin.srcDir("src/integrationTest/kotlin")
+            resources.srcDir("src/integrationTest/resources")
+            compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+            runtimeClasspath += output + compileClasspath + sourceSets["test"].runtimeClasspath
+        }
+    }
+}
+
+task<Test>("integrationTest") {
+    description = "Runs the integration tests"
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    mustRunAfter(tasks["test"])
+    useJUnitPlatform()
+    reports.html.isEnabled = true
+}
+configure<JavaPluginConvention> {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType<KotlinCompile>().configureEach {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+task("execute", JavaExec::class) {
+    dependsOn("assemble")
+    group = "execute"
+    main = "io.xooxo.bybit.MainKt"
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+    reports.html.isEnabled = true
+}
+
+tasks {
+    jar {
+        manifest {
+            attributes(mapOf("Main-Class" to "io.xooxo.bybit.MainKt"))
+        }
+    }
+}
+
+tasks.create("buildDockerImage", DockerBuildImage::class) {
+    dependsOn("shadowJar")
+    images.add("cointradr/bybit:latest")
+    inputDir.set(file(project.projectDir))
+}
