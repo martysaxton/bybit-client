@@ -1,4 +1,3 @@
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -27,15 +26,24 @@ dependencies {
 //    api("org.apache.commons:commons-lang3:3.6")
     testImplementation("org.junit.jupiter:junit-jupiter:5.5.2")
     testImplementation("ch.qos.logback:logback-classic:1.2.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.3")
 }
 
 
 sourceSets {
     create("integrationTest") {
+        //        withConvention(org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet::class) {
+//            kotlin.srcDir("src/integrationTest/kotlin")
+//            resources.srcDir("src/integrationTest/resources")
+////            compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+//            compileClasspath += sourceSets["main"].output + sourceSets["test"].runtimeClasspath
+//            runtimeClasspath += output + compileClasspath + sourceSets["test"].runtimeClasspath
+//        }
+
         withConvention(org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet::class) {
             kotlin.srcDir("src/integrationTest/kotlin")
             resources.srcDir("src/integrationTest/resources")
-            compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+            compileClasspath += sourceSets["main"].output + sourceSets["test"].runtimeClasspath
             runtimeClasspath += output + compileClasspath + sourceSets["test"].runtimeClasspath
         }
     }
@@ -81,8 +89,3 @@ tasks {
     }
 }
 
-tasks.create("buildDockerImage", DockerBuildImage::class) {
-    dependsOn("shadowJar")
-    images.add("cointradr/bybit:latest")
-    inputDir.set(file(project.projectDir))
-}
