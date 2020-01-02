@@ -81,8 +81,8 @@ tasks.test {
 
 detekt {
     //    failFast = false // fail build on any finding
-//    buildUponDefaultConfig = true // preconfigure defaults
-//    config = files("$projectDir/config/detekt.yml") // point to your custom config defining rules to run, overwriting default behavior
+    buildUponDefaultConfig = true // preconfigure defaults
+    config = files("$projectDir/detekt.yml") // point to your custom config defining rules to run, overwriting default behavior
 
 //    reports {
 //        html.enabled = true // observe findings in your browser with structure and code snippets

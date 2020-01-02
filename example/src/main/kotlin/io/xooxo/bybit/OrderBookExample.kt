@@ -3,7 +3,7 @@ package io.xooxo.bybit
 import io.xooxo.bybit.impl.ByBitClientImpl
 import io.xooxo.bybit.model.OrderBook
 
-fun main(args: Array<String>) {
+fun main() {
     val client = ByBitClientImpl(ByBitClient.Type.LIVE)
     val book = OrderBook()
     client.setCloseListener { println("websocket closed") }
@@ -31,7 +31,6 @@ fun main(args: Array<String>) {
         client.subscribeToOrderBook("BTCUSD")
     }
     client.connectWebSocket()
-
 }
 
 fun printBook(book: OrderBook) {
@@ -40,5 +39,4 @@ fun printBook(book: OrderBook) {
     val firstBid = bids[0]
     val firstAsk = asks[0]
     println("bids bids=${bids.size} size=asks${asks.size}  fb=$firstBid fa=$firstAsk")
-
 }

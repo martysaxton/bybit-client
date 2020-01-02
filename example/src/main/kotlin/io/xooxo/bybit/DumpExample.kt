@@ -2,7 +2,7 @@ package io.xooxo.bybit
 
 import io.xooxo.bybit.impl.ByBitClientImpl
 
-fun main(args: Array<String>) {
+fun main() {
     val client = ByBitClientImpl(ByBitClient.Type.LIVE)
     client.setCloseListener { println("websocket closed") }
     client.setTradeListener { println("trade: $it") }
@@ -21,5 +21,4 @@ fun main(args: Array<String>) {
         client.subscribeToOrderBook("BTCUSD")
     }
     client.connectWebSocket()
-
 }

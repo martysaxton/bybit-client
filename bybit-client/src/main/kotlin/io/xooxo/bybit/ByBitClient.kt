@@ -1,6 +1,10 @@
 package io.xooxo.bybit
 
-import io.xooxo.bybit.model.*
+import io.xooxo.bybit.model.DepthDeltaListener
+import io.xooxo.bybit.model.DepthSnapshotListener
+import io.xooxo.bybit.model.InstrumentInfoDeltaListener
+import io.xooxo.bybit.model.InstrumentInfoSnapshotListener
+import io.xooxo.bybit.model.TradeListener
 
 interface ByBitClient {
     enum class Type(val baseUrl: String, val webSocketUrl: String) {
@@ -21,5 +25,8 @@ interface ByBitClient {
     fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener)
 
     fun subscribeToInstrumentInfo(symbol: String)
-    fun setInstrumentInfoListeners(instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener, instrumentInfoDeltaListener: InstrumentInfoDeltaListener)
+    fun setInstrumentInfoListeners(
+        instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener,
+        instrumentInfoDeltaListener: InstrumentInfoDeltaListener
+    )
 }

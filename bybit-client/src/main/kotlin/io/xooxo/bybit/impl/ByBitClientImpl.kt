@@ -1,12 +1,21 @@
 package io.xooxo.bybit.impl
 
+
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.convertValue
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.xooxo.bybit.ByBitClient
-import io.xooxo.bybit.model.*
+import io.xooxo.bybit.model.DepthDeltaListener
+import io.xooxo.bybit.model.DepthDeltaMessage
+import io.xooxo.bybit.model.DepthSnapshotListener
+import io.xooxo.bybit.model.DepthSnapshotMessage
+import io.xooxo.bybit.model.InstrumentInfoDeltaListener
+import io.xooxo.bybit.model.InstrumentInfoDeltaMessage
+import io.xooxo.bybit.model.InstrumentInfoSnapshotListener
+import io.xooxo.bybit.model.InstrumentInfoSnapshotMessage
+import io.xooxo.bybit.model.TradeListener
+import io.xooxo.bybit.model.TradeMessage
 import org.http4k.client.WebsocketClient
 import org.http4k.core.Uri
 import org.http4k.format.ConfigurableJackson
@@ -20,20 +29,21 @@ import org.slf4j.LoggerFactory
 import kotlin.concurrent.fixedRateTimer
 
 object Jackson : ConfigurableJackson(KotlinModule()
-        .asConfigurable()
-        .withStandardMappings()
-        .done()
-        .deactivateDefaultTyping()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-        .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, false)
-        .configure(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS, false)
+    .asConfigurable()
+    .withStandardMappings()
+    .done()
+    .deactivateDefaultTyping()
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, false)
+    .configure(DeserializationFeature.USE_BIG_INTEGER_FOR_INTS, false)
 )
 
-class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
+class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
 
     companion object {
         val log: Logger = LoggerFactory.getLogger(ByBitClientImpl::class.java)
+        const val PING_INTERVAL = 10000L
     }
 
     init {
@@ -55,9 +65,6 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
 
     private val jsonLens = WsMessage.auto<JsonNode>().toLens()
 
-    val mapper = jacksonObjectMapper()
-
-
     override fun connectWebSocket() {
         log.info("connecting to {}", type.webSocketUrl)
         closing = false
@@ -65,52 +72,14 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
             it.run {
                 log.info("connected to {}", type.webSocketUrl)
                 connectListener?.let { it() }
-                fixedRateTimer("byBitPing", true, 10000, 10000) {
-                    log.debug("sending ping")
-                    send(WsMessage("{\"op\":\"ping\"}"))
-                }
+                fixedRateTimer("byBitPing", true, PING_INTERVAL, PING_INTERVAL) { executePing() }
             }
         }
 
         websocket?.run {
-            onMessage {
-                log.debug("websocket received: {}", it)
-                val json = jsonLens(it)
-                // test if op response
-                if (json.has("success")) {
-                    handleOpResponse(json)
-                } else {
-                    val topic: String = json["topic"].textValue()
-                    if (topic.startsWith("trade.")) {
-                        handleTradeMessage(json)
-                    } else if (topic.startsWith("orderBookL2_25.")) {
-                        when (val type: String = json["type"].textValue()) {
-                            "snapshot" -> {
-                                handleDepthSnapshot(json)
-                            }
-                            "delta" -> {
-                                handleDepthDelta(json)
-                            }
-                            else -> {
-                                throw RuntimeException("unknown depth event type: ${type}")
-                            }
-                        }
-                    } else if (topic.startsWith("instrument_info.")) {
-                        when (val type: String = json["type"].textValue()) {
-                            "snapshot" -> {
-                                handleInstrumentInfoSnapshot(json)
-                            }
-                            "delta" -> {
-                                handleInstrumentInfoDelta(json)
-                            }
-                            else -> {
-                                throw RuntimeException("unknown depth event type: ${type}")
-                            }
-                        }
-
-                    }
-                }
-            }
+            onMessage(::onMessage)
+//            onMessage {
+//            }
 
             onClose {
                 log.info("websocket closing")
@@ -124,11 +93,57 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         }
     }
 
+    private fun onMessage(message: WsMessage) {
+        log.debug("websocket received: {}", message)
+        val json = jsonLens(message)
+        // test if op response
+        if (json.has("success")) {
+            handleOpResponse(json)
+        } else {
+            val topic: String = json["topic"].textValue()
+            when {
+                topic.startsWith("trade.") -> {
+                    handleTradeMessage(json)
+                }
+                topic.startsWith("orderBookL2_25.") -> {
+                    when (val type: String = json["type"].textValue()) {
+                        "snapshot" -> {
+                            handleDepthSnapshot(json)
+                        }
+                        "delta" -> {
+                            handleDepthDelta(json)
+                        }
+                        else -> {
+                            throw UnrecoverableByBitException("unknown depth event type: $type")
+                        }
+                    }
+                }
+                topic.startsWith("instrument_info.") -> {
+                    when (val type: String = json["type"].textValue()) {
+                        "snapshot" -> {
+                            handleInstrumentInfoSnapshot(json)
+                        }
+                        "delta" -> {
+                            handleInstrumentInfoDelta(json)
+                        }
+                        else -> {
+                            throw UnrecoverableByBitException("unknown depth event type: $type")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun executePing() {
+        log.debug("sending ping")
+        websocket?.send(WsMessage("{\"op\":\"ping\"}"))
+    }
+
     private fun handleInstrumentInfoDelta(json: JsonNode) {
         val instrumentInfoDeltaMessage: InstrumentInfoDeltaMessage = Jackson.mapper.convertValue(json)
         log.debug("received instrument info delta: {}", instrumentInfoDeltaMessage)
         instrumentInfoDeltaListener?.let { it(instrumentInfoDeltaMessage) }
-
     }
 
     private fun handleInstrumentInfoSnapshot(json: JsonNode) {
@@ -148,7 +163,6 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         log.debug("received depth snapshot: {}", depthSnapshotMessage)
         depthSnapshotListener?.let { it(depthSnapshotMessage) }
     }
-
 
     private fun handleTradeMessage(json: JsonNode) {
         val tradeMessage = Jackson.asA(json, TradeMessage::class)
@@ -174,8 +188,8 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         this.connectListener = connectListener
     }
 
-    override fun setCloseListener(connectListener: () -> Unit) {
-        this.closeListener = connectListener
+    override fun setCloseListener(closeListener: () -> Unit) {
+        this.closeListener = closeListener
     }
 
     override fun subscribeToTrades() {
@@ -190,7 +204,10 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         websocket!!.send(WsMessage("{\"op\": \"subscribe\", \"args\": [\"orderBookL2_25.$symbol\"]}"))
     }
 
-    override fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener) {
+    override fun setDepthListeners(
+        depthSnapshotListener: DepthSnapshotListener,
+        depthDeltaListener: DepthDeltaListener
+    ) {
         this.depthSnapshotListener = depthSnapshotListener
         this.depthDeltaListener = depthDeltaListener
     }
@@ -199,10 +216,12 @@ class ByBitClientImpl(val type: ByBitClient.Type) : ByBitClient {
         websocket!!.send(WsMessage("{\"op\":\"subscribe\",\"args\":[\"instrument_info.100ms.$symbol\"]}"))
     }
 
-    override fun setInstrumentInfoListeners(instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener, instrumentInfoDeltaListener: InstrumentInfoDeltaListener) {
+    override fun setInstrumentInfoListeners(
+        instrumentInfoSnapshotListener: InstrumentInfoSnapshotListener,
+        instrumentInfoDeltaListener: InstrumentInfoDeltaListener
+    ) {
         this.instrumentInfoSnapshotListener = instrumentInfoSnapshotListener
         this.instrumentInfoDeltaListener = instrumentInfoDeltaListener
     }
-
 }
 

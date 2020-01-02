@@ -1,7 +1,9 @@
 package io.xooxo.bybit.model
 
 import java.math.BigDecimal
-import java.util.*
+import java.util.SortedMap
+import java.util.TreeMap
+
 
 data class BidAsk(val price: BigDecimal, val size: BigDecimal)
 
@@ -17,7 +19,7 @@ private class BigDecimalDescendingComparator : Comparator<BigDecimal> {
 class OrderBook {
 
     companion object {
-        val BIDS_SIDE = "Buy"
+        const val BIDS_SIDE = "Buy"
     }
 
     private val bids: SortedMap<BigDecimal, BidAsk> = TreeMap(BigDecimalDescendingComparator())
@@ -35,7 +37,6 @@ class OrderBook {
         bids.clear()
         asks.clear()
         snapshot.data.forEach {
-            val x = it
             applyDepthElement(it)
         }
     }
@@ -59,10 +60,6 @@ class OrderBook {
         val bidAsk = BidAsk(price, BigDecimal(depthElement.size))
         if (depthElement.side == BIDS_SIDE) {
             bids[price] = bidAsk
-        } else {
-            asks[price] = bidAsk
-        }
-
+        } else asks[price] = bidAsk
     }
-
 }
