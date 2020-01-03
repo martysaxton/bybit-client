@@ -50,6 +50,8 @@ class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
         log.debug("instantiating {}", ByBitClientImpl::class.simpleName)
     }
 
+    private var connected = false
+
     private var depthSnapshotListener: DepthSnapshotListener? = null
     private var depthDeltaListener: DepthDeltaListener? = null
 
@@ -71,6 +73,7 @@ class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
         websocket = WebsocketClient.nonBlocking(Uri.of(type.webSocketUrl)) { it ->
             it.run {
                 log.info("connected to {}", type.webSocketUrl)
+                connected = true
                 connectListener?.let { it() }
                 fixedRateTimer("byBitPing", true, PING_INTERVAL, PING_INTERVAL) { executePing() }
             }
@@ -83,6 +86,7 @@ class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
 
             onClose {
                 log.info("websocket closing")
+                connected = false
                 closeListener?.let { it() }
                 if (!closing) {
                     connectWebSocket()
@@ -136,8 +140,10 @@ class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
     }
 
     private fun executePing() {
-        log.debug("sending ping")
-        websocket?.send(WsMessage("{\"op\":\"ping\"}"))
+        if (connected) {
+            log.debug("sending ping")
+            websocket?.send(WsMessage("{\"op\":\"ping\"}"))
+        }
     }
 
     private fun handleInstrumentInfoDelta(json: JsonNode) {
