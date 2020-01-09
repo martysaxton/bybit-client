@@ -28,7 +28,7 @@ fun main() {
         println("websocket connected")
         client.subscribeToTrades()
 //        client.subscribeToInstrumentInfo("BTCUSD")
-        client.subscribeToOrderBook("BTCUSD")
+        client.subscribeToDepth("BTCUSD")
     }
     client.connectWebSocket()
 }

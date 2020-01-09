@@ -206,7 +206,7 @@ class ByBitClientImpl(private val type: ByBitClient.Type) : ByBitClient {
         this.tradeListener = tradeListener
     }
 
-    override fun subscribeToOrderBook(symbol: String) {
+    override fun subscribeToDepth(symbol: String) {
         websocket!!.send(WsMessage("{\"op\": \"subscribe\", \"args\": [\"orderBookL2_25.$symbol\"]}"))
     }
 

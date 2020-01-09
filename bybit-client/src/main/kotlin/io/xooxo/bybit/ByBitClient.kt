@@ -21,7 +21,7 @@ interface ByBitClient {
     fun subscribeToTrades()
     fun setTradeListener(tradeListener: TradeListener)
 
-    fun subscribeToOrderBook(symbol: String)
+    fun subscribeToDepth(symbol: String)
     fun setDepthListeners(depthSnapshotListener: DepthSnapshotListener, depthDeltaListener: DepthDeltaListener)
 
     fun subscribeToInstrumentInfo(symbol: String)

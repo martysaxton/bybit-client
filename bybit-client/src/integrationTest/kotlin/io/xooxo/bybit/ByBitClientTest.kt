@@ -50,7 +50,7 @@ class ByBitClientTest {
         var depthSnapshotReceived = false
         var depthDeltaReceived = false
         client.setDepthListeners({ depthSnapshotReceived = true }, { depthDeltaReceived = true })
-        client.setConnectListener { client.subscribeToOrderBook("BTCUSD") }
+        client.setConnectListener { client.subscribeToDepth("BTCUSD") }
         client.connectWebSocket()
         for (i in 1..RETRIES) {
             if (depthSnapshotReceived && depthDeltaReceived) {

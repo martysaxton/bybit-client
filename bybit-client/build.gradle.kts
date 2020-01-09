@@ -7,7 +7,9 @@ buildscript {
 }
 
 plugins {
+//    kotlin("jvm")
     kotlin("jvm")
+
     `maven-publish`
     id("io.gitlab.arturbosch.detekt").version("1.3.1")
 }
